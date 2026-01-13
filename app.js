@@ -377,6 +377,14 @@ function setAnnotationType(type) {
     if (type === 'obstacle') elements.btnObstacle.classList.add('active');
     if (type === 'background') elements.btnBackground.classList.add('active');
 
+    // 重置标注框大小为默认值
+    state.boxWidth = 25;
+    state.boxHeight = 25;
+    elements.boxWidth.value = 25;
+    elements.boxHeight.value = 25;
+    elements.boxWidthDisplay.textContent = '25';
+    elements.boxHeightDisplay.textContent = '25';
+
     // 启用当前帧的绘制
     const currentOverlay = document.querySelector(`.frame-overlay[data-index="${state.currentFrameIndex}"]`);
     if (currentOverlay) {
@@ -680,9 +688,11 @@ async function analyzeFrames() {
 
         console.log(`明度差: 障碍↔地板=${obstacleFlorDiff.toFixed(2)}%, 地板↔背景=${floorBackgroundDiff.toFixed(2)}%`);
 
-        // 判定是否合格
-        const obstacleFloorPass = obstacleFlorDiff >= 10;
-        const floorBackgroundPass = floorBackgroundDiff >= 20;
+        // 判定是否合格（增加1%容差）
+        // 障碍↔地板：要求≥10%，容差后≥9%即可
+        // 地板↔背景：要求≥20%，容差后≥19%即可
+        const obstacleFloorPass = obstacleFlorDiff >= 9;
+        const floorBackgroundPass = floorBackgroundDiff >= 19;
 
         results.push({
             frameIndex: i,
@@ -818,13 +828,13 @@ function showResults() {
     // 更新明度差
     document.getElementById('obstacle-floor-diff').textContent = obstacleFloorDiff.toFixed(2) + '%';
     document.getElementById('obstacle-floor-status').innerHTML =
-        obstacleFloorPass ? '<span class="status-pass">✅ 合格 (≥10%)</span>' :
-                           '<span class="status-fail">❌ 不合格 (<10%)</span>';
+        obstacleFloorPass ? '<span class="status-pass">✅ 合格 (≥9%, 含1%容差)</span>' :
+                           '<span class="status-fail">❌ 不合格 (<9%)</span>';
 
     document.getElementById('floor-background-diff').textContent = floorBackgroundDiff.toFixed(2) + '%';
     document.getElementById('floor-background-status').innerHTML =
-        floorBackgroundPass ? '<span class="status-pass">✅ 合格 (≥20%)</span>' :
-                             '<span class="status-fail">❌ 不合格 (<20%)</span>';
+        floorBackgroundPass ? '<span class="status-pass">✅ 合格 (≥19%, 含1%容差)</span>' :
+                             '<span class="status-fail">❌ 不合格 (<19%)</span>';
 
     // 填充所有帧结果表格
     const tbody = document.getElementById('frames-results-tbody');
@@ -922,28 +932,47 @@ function formatTime(seconds) {
 
 // 重新开始
 function restart() {
-    // 重置状态
-    state.videoFile = null;
-    state.frames = [];
+    // 只重置标注和结果相关的状态，保留视频和已选择的帧
     state.currentFrameIndex = 0;
     state.annotations = [];
     state.currentAnnotationType = null;
     state.isDrawing = false;
     state.startPoint = null;
     state.results = null;
+    state.previewBox = null;
 
-    // 清空视频输入
-    elements.videoInput.value = '';
+    // 重新初始化标注数据（保留帧数据）
+    state.frames.forEach(() => {
+        state.annotations.push({
+            floor: null,
+            obstacle: null,
+            background: null
+        });
+    });
 
     // 清空帧网格
     elements.framesGrid.innerHTML = '';
 
     // 重置进度
     updateProgress(0, '准备中...');
-    updateExtractProgress(0, '准备中...');
 
-    // 返回上传界面
-    showSection('upload');
+    // 如果有4帧，直接回到选帧界面；否则回到上传界面
+    if (state.frames.length === 4) {
+        // 返回选帧界面，可以重新选择帧
+        showSection('select');
+        // 更新帧预览
+        updateFramesPreview();
+        // 启用开始标注按钮
+        elements.btnStartAnnotation.disabled = false;
+    } else {
+        // 完全重置
+        state.videoFile = null;
+        state.frames = [];
+        elements.videoInput.value = '';
+        updateFrameCount();
+        updateFramesPreview();
+        showSection('upload');
+    }
 }
 
 // 页面加载时初始化
