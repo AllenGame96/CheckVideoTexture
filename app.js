@@ -8,8 +8,8 @@ const state = {
     isDrawing: false,
     startPoint: null,
     results: null,
-    boxWidth: 150, // 预设标注框宽度
-    boxHeight: 150, // 预设标注框高度
+    boxWidth: 25, // 预设标注框宽度
+    boxHeight: 25, // 预设标注框高度
     previewBox: null // 鼠标悬停时的预览框
 };
 
