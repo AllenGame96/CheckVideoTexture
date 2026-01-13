@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频亮度检测工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 视频亮度检测工具</h1>
+            <p class="subtitle">自动检测障碍、地板、背景的明度差是否达标</p>
+        </header>
+
+        <main>
+            <!-- 步骤1: 上传视频 -->
+            <section id="upload-section" class="section active">
+                <h2>步骤 1: 上传视频</h2>
+                <div class="upload-area">
+                    <input type="file" id="video-input" accept="video/*" />
+                    <label for="video-input" class="upload-label">
+                        <span class="upload-icon">📁</span>
+                        <span>点击选择视频文件</span>
+                    </label>
+                </div>
+            </section>
+
+            <!-- 步骤2: 选择帧 -->
+            <section id="select-section" class="section">
+                <h2>步骤 2: 选择4帧进行检测</h2>
+                <p class="instruction">播放视频到需要检测的位置，点击"捕获当前帧"按钮（会自动暂停并捕获）。需要选择4帧。</p>
+
+                <div class="select-layout">
+                    <!-- 左侧：视频和捕获按钮 -->
+                    <div class="select-layout-left">
+                        <div class="video-container" style="margin: 0;">
+                            <video id="video-player" controls></video>
+                        </div>
+                        <div class="capture-controls" style="margin: 10px 0 0 0;">
+                            <button id="btn-capture-frame" class="btn btn-primary">📸 捕获当前帧 (<span id="frame-count">0</span>/4)</button>
+                            <p class="hint">💡 点击即可自动暂停并捕获</p>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：已选择的帧 -->
+                    <div class="select-layout-right">
+                        <div class="selected-frames" id="selected-frames" style="margin: 0; height: 100%;">
+                            <h3>已选择的帧 (<span id="frame-count-display">0</span>/4)</h3>
+                            <div class="frames-preview" id="frames-preview">
+                                <p class="empty-hint">还未选择任何帧</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="btn-start-annotation" class="btn btn-primary" disabled>开始标注 →</button>
+            </section>
+
+            <!-- 步骤3: 标注区域 -->
+            <section id="annotation-section" class="section">
+                <h2>步骤 3: 在4帧上标注区域</h2>
+                <div class="annotation-controls">
+                    <button id="btn-floor" class="btn btn-floor">标注地板 (Floor)</button>
+                    <button id="btn-obstacle" class="btn btn-obstacle">标注障碍 (Obstacle)</button>
+                    <button id="btn-background" class="btn btn-background">标注背景 (Background)</button>
+                    <button id="btn-clear" class="btn btn-secondary">清除当前帧标注</button>
+                    <div class="annotation-size-control">
+                        <label>标注框大小:</label>
+                        <input type="range" id="box-width" min="50" max="400" value="150" step="10">
+                        <span id="box-width-display">150</span>px ×
+                        <input type="range" id="box-height" min="50" max="400" value="150" step="10">
+                        <span id="box-height-display">150</span>px
+                    </div>
+                    <span class="sticky-hint">� 点击图片即可标注</span>
+                </div>
+
+                <div class="frames-grid" id="frames-grid">
+                    <!-- 4帧将动态生成 -->
+                </div>
+
+                <div class="annotation-info">
+                    <h3>当前帧: <span id="current-frame-number">1</span> / 4</h3>
+                    <p>✅ 地板: <span id="floor-status">未标注</span></p>
+                    <p>✅ 障碍: <span id="obstacle-status">未标注</span></p>
+                    <p>✅ 背景: <span id="background-status">未标注</span></p>
+                    <div class="frame-navigation">
+                        <button id="btn-prev-frame" class="btn btn-secondary">← 上一帧</button>
+                        <button id="btn-next-frame" class="btn btn-secondary">下一帧 →</button>
+                    </div>
+                </div>
+
+                <div class="annotation-summary">
+                    <h3>标注进度</h3>
+                    <div id="annotation-progress">
+                        <div class="frame-progress">帧1: <span id="frame-0-progress">未完成</span></div>
+                        <div class="frame-progress">帧2: <span id="frame-1-progress">未完成</span></div>
+                        <div class="frame-progress">帧3: <span id="frame-2-progress">未完成</span></div>
+                        <div class="frame-progress">帧4: <span id="frame-3-progress">未完成</span></div>
+                    </div>
+                </div>
+
+                <button id="btn-start-analysis" class="btn btn-primary" disabled>开始分析</button>
+            </section>
+
+            <!-- 步骤4: 分析进度 -->
+            <section id="analysis-section" class="section">
+                <h2>步骤 4: 分析中...</h2>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-text">准备中...</p>
+                </div>
+            </section>
+
+            <!-- 步骤5: 结果展示 -->
+            <section id="result-section" class="section">
+                <h2>步骤 5: 检测结果</h2>
+                
+                <div class="result-summary">
+                    <div class="result-card">
+                        <h3>总体状态</h3>
+                        <div id="overall-status" class="status-badge">-</div>
+                    </div>
+                </div>
+
+                <div class="result-details">
+                    <div class="detail-card">
+                        <h3>明度值</h3>
+                        <table class="result-table">
+                            <tr>
+                                <td>地板 (Floor)</td>
+                                <td id="floor-value">-</td>
+                            </tr>
+                            <tr>
+                                <td>障碍 (Obstacle)</td>
+                                <td id="obstacle-value">-</td>
+                            </tr>
+                            <tr>
+                                <td>背景 (Background)</td>
+                                <td id="background-value">-</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="detail-card">
+                        <h3>明度差检测</h3>
+                        <table class="result-table">
+                            <tr>
+                                <td>障碍 ↔ 地板</td>
+                                <td id="obstacle-floor-diff">-</td>
+                                <td id="obstacle-floor-status">-</td>
+                            </tr>
+                            <tr>
+                                <td>地板 ↔ 背景</td>
+                                <td id="floor-background-diff">-</td>
+                                <td id="floor-background-status">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="all-frames-results">
+                    <h3>所有帧检测结果</h3>
+                    <table class="frames-result-table">
+                        <thead>
+                            <tr>
+                                <th>帧序号</th>
+                                <th>时间戳</th>
+                                <th>地板明度</th>
+                                <th>障碍明度</th>
+                                <th>背景明度</th>
+                                <th>障碍↔地板</th>
+                                <th>地板↔背景</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="frames-results-tbody">
+                            <!-- 动态填充 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="worst-frame">
+                    <h3>最差帧信息</h3>
+                    <p>时间戳: <span id="worst-timestamp">-</span></p>
+                    <canvas id="worst-frame-canvas"></canvas>
+                </div>
+
+                <button id="btn-restart" class="btn btn-primary">重新检测</button>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
